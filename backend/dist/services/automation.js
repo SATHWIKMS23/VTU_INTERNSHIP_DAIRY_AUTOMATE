@@ -78,38 +78,69 @@ async function runAutomation(jobId, password, preview = false, userSkills = [], 
             const fullText = await page.evaluate(() => document.body.innerText);
             function parseEntries(text) {
                 const entries = [];
-                const dates = text.match(/\d{2}[-/]\d{2}[-/]\d{4}/g);
+                // Robust regex to find various date formats:
+                // 1. DD/MM/YYYY or DD-MM-YYYY
+                // 2. YYYY/MM/DD or YYYY-MM-DD
+                // 3. DD/Month/YYYY or DD-Month-YYYY
+                // 4. YYYY/Month/DD or YYYY-Month-DD
+                const dateRegex = /(\d{4}[-/](?:\d{1,2}|[a-zA-Z]{3,9})[-/]\d{1,2})|(\d{1,2}[-/](?:\d{1,2}|[a-zA-Z]{3,9})[-/]\d{4})/g;
+                const dates = text.match(dateRegex);
                 if (!dates)
                     return [];
-                const blocks = text.split(/\d{2}[-/]\d{2}[-/]\d{4}/).slice(1);
-                for (let i = 0; i < dates.length; i++) {
-                    const block = blocks[i];
-                    // Work Summary: between "Work Summary" and "Learnings"
+                const blocks = text.split(dateRegex).filter(b => b !== undefined).slice(1);
+                // Since splitting with multiple groups returns match results in the split array, 
+                // we need to be careful. A better way is to find all matches and indices.
+                const normalizedEntries = [];
+                let match;
+                const matches = [];
+                const re = new RegExp(dateRegex);
+                while ((match = re.exec(text)) !== null) {
+                    matches.push({ date: match[0], index: match.index });
+                }
+                const monthsMap = {
+                    jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
+                    jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12"
+                };
+                function normalize(dStr) {
+                    const parts = dStr.split(/[-/]/);
+                    let d = "", m = "", y = "";
+                    if (parts[0].length === 4) { // YYYY/MM/DD
+                        y = parts[0];
+                        m = parts[1];
+                        d = parts[2];
+                    }
+                    else { // DD/MM/YYYY
+                        d = parts[0];
+                        m = parts[1];
+                        y = parts[2];
+                    }
+                    // Handle month names
+                    if (isNaN(parseInt(m))) {
+                        const lowM = m.toLowerCase().substring(0, 3);
+                        m = monthsMap[lowM] || "01";
+                    }
+                    const pad = (n) => n.length === 1 ? '0' + n : n;
+                    return {
+                        formatted: `${pad(d)}/${pad(m)}/${y}`,
+                        iso: `${y}-${pad(m)}-${pad(d)}`
+                    };
+                }
+                for (let i = 0; i < matches.length; i++) {
+                    const start = matches[i].index + matches[i].date.length;
+                    const end = (i + 1 < matches.length) ? matches[i + 1].index : text.length;
+                    const block = text.substring(start, end);
                     const workMatch = block.match(/Work Summary([\s\S]*?)(?:Learnings|Reference Links|Blockers)/i);
-                    // Learnings: between "Learnings" and "Reference Links" or "Blockers" or end
                     const learnMatch = block.match(/Learnings([\s\S]*?)(?:Reference Links|Blockers|$)/i);
-                    // Reference Links: between "Reference Links" and "Blockers" or end
                     const refMatch = block.match(/Reference Links([\s\S]*?)(?:Blockers|$)/i);
-                    // Blockers / Risks: after "Blockers" to end
                     const blockerMatch = block.match(/Blockers\s*\/\s*Risks([\s\S]*?)$/i) || block.match(/Blockers([\s\S]*?)$/i);
-                    const work = workMatch ? workMatch[1].trim() : "";
-                    const learn = learnMatch
-                        ? learnMatch[1].trim().split('\n').filter((l) => l.trim())
-                        : [];
-                    const referenceLinks = refMatch ? refMatch[1].trim() : "";
-                    const blockers = blockerMatch ? blockerMatch[1].trim() : "";
-                    const formattedDate = dates[i].replace(/(\d{2})[-/](\d{2})[-/](\d{4})/, (_, d, m, y) => {
-                        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                        return `${d}/${months[parseInt(m) - 1]}/${y}`;
-                    });
-                    const isoDate = dates[i].replace(/(\d{2})[-/](\d{2})[-/](\d{4})/, "$3-$2-$1");
+                    const { formatted, iso } = normalize(matches[i].date);
                     entries.push({
-                        date: formattedDate,
-                        isoDate: isoDate,
-                        work_summary: work,
-                        learning_outcomes: learn,
-                        reference_links: referenceLinks,
-                        blockers: blockers
+                        date: formatted,
+                        isoDate: iso,
+                        work_summary: workMatch ? workMatch[1].trim() : "",
+                        learning_outcomes: learnMatch ? learnMatch[1].trim().split('\n').filter((l) => l.trim()) : [],
+                        reference_links: refMatch ? refMatch[1].trim() : "",
+                        blockers: blockerMatch ? blockerMatch[1].trim() : ""
                     });
                 }
                 return entries;
@@ -220,8 +251,8 @@ async function runAutomation(jobId, password, preview = false, userSkills = [], 
                 await vtuPage.click('button[data-slot="popover-trigger"]');
                 await vtuPage.waitForSelector('select[aria-label="Choose the Year"]', { visible: true, timeout: 10000 });
                 const [dayStr, monthStr, yearStr] = data.date.split('/');
-                const monthsArr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                const monthIndex = monthsArr.indexOf(monthStr);
+                // monthStr is now a number string like "03"
+                const monthIndex = parseInt(monthStr, 10) - 1;
                 await vtuPage.select('select[aria-label="Choose the Year"]', yearStr);
                 await sleep(100);
                 await vtuPage.select('select[aria-label="Choose the Month"]', monthIndex.toString());

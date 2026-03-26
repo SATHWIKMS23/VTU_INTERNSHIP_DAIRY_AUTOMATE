@@ -14,7 +14,10 @@ const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/vtu-automate';
 // Middleware
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({
+    origin: ['http://localhost:5173', 'https://vtu-internship-dairy-automate.onrender.com'],
+    credentials: true
+}));
 app.use(express_1.default.json());
 // Routes
 app.post('/api/automate', async (req, res) => {
