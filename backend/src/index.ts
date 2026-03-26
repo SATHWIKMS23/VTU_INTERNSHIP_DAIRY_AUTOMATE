@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -16,7 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.post('/api/automate', async (req, res) => {
+app.post('/api/automate', async (req: Request, res: Response) => {
   const { email, password, docUrl, preview = false, skills = [], hours = 6 } = req.body;
 
   if (!email || !password || !docUrl) {
@@ -43,9 +43,9 @@ app.post('/api/automate', async (req, res) => {
   }
 });
 
-app.get('/api/jobs/:id', async (req, res) => {
+app.get('/api/jobs/:id', async (req: Request, res: Response) => {
   try {
-    const job = await Job.findById(req.params.id);
+    const job = await Job.findById(req.params.id as string);
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
@@ -65,9 +65,9 @@ app.get('/api/jobs/:id', async (req, res) => {
   }
 });
 
-app.post('/api/jobs/:id/cancel', async (req, res) => {
+app.post('/api/jobs/:id/cancel', async (req: Request, res: Response) => {
   try {
-    const job = await Job.findById(req.params.id);
+    const job = await Job.findById(req.params.id as string);
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
@@ -78,9 +78,9 @@ app.post('/api/jobs/:id/cancel', async (req, res) => {
   }
 });
 
-app.get('/api/jobs/:id/screenshot', async (req, res) => {
+app.get('/api/jobs/:id/screenshot', async (req: Request, res: Response) => {
   try {
-    const screenshot = await getJobScreenshot(req.params.id);
+    const screenshot = await getJobScreenshot(req.params.id as string);
     if (!screenshot) {
       return res.status(404).json({ error: 'Screenshot not available' });
     }
@@ -98,6 +98,6 @@ mongoose.connect(MONGO_URI)
       console.log(`Server running on port ${PORT}`);
     });
   })
-  .catch((err) => {
+  .catch((err: Error) => {
     console.error('Database connection failed', err);
   });

@@ -130,7 +130,7 @@ async function runAutomation(jobId, password, preview = false, userSkills = [], 
             const vtuPage = await vtuBrowser.newPage();
             await vtuPage.goto('https://vtu.internyet.in/sign-in', { waitUntil: 'networkidle2' });
             await sleep(3000);
-            const isLoggedIn = await vtuPage.evaluate(() => document.body.innerText.includes('Internship Diary'));
+            const isLoggedIn = await vtuPage.evaluate((el) => el.innerText.includes('Internship Diary'), (await vtuPage.$('body')));
             if (!isLoggedIn) {
                 await vtuPage.waitForSelector('input');
                 const inputs = await vtuPage.$$('input');
@@ -148,7 +148,7 @@ async function runAutomation(jobId, password, preview = false, userSkills = [], 
                 const buttons = await vtuPage.$$('button');
                 let clickedLogin = false;
                 for (const btn of buttons) {
-                    const text = await vtuPage.evaluate(el => el.innerText, btn);
+                    const text = await vtuPage.evaluate((el) => el.innerText, btn);
                     if (text.toLowerCase().includes('login') || text.toLowerCase().includes('sign in')) {
                         await btn.click();
                         clickedLogin = true;
@@ -177,15 +177,17 @@ async function runAutomation(jobId, password, preview = false, userSkills = [], 
             catch (e) {
                 await updateJobLog(jobId, "⚠️ No existing entries found in table (or API took too long to load).");
             }
-            const latestDateStr = await vtuPage.evaluate(() => {
-                const text = document.body.innerText.replace(/\s+/g, '');
+            const existingDates = await vtuPage.evaluate((b) => {
+                const text = b.innerText.replace(/\s+/g, '');
                 const matches = text.match(/\d{4}-\d{2}-\d{2}/g);
-                return matches ? matches[0] : null;
-            });
+                return matches || [];
+            }, (await vtuPage.$('body')));
             let unsubmittedEntries = entries;
-            if (latestDateStr) {
+            if (existingDates.length > 0) {
+                const latestDateStr = existingDates[0]; // Assuming the first match is the latest
                 await updateJobLog(jobId, `✅ Last submitted date: ${latestDateStr}. Filtering entries strictly AFTER this date.`);
-                unsubmittedEntries = entries.filter(e => e.isoDate > latestDateStr);
+                const filtered = entries.filter(e => !existingDates.some((iso) => iso === e.isoDate));
+                unsubmittedEntries = filtered;
             }
             else {
                 await updateJobLog(jobId, `✅ No existing entries found. Proceeding with all.`);
@@ -239,7 +241,7 @@ async function runAutomation(jobId, password, preview = false, userSkills = [], 
                 const buttons = await vtuPage.$$('button');
                 let continueClicked = false;
                 for (const btn of buttons) {
-                    const text = await vtuPage.evaluate(el => el.innerText, btn);
+                    const text = await vtuPage.evaluate((el) => el.innerText, btn);
                     if (text.toLowerCase().includes('continue')) {
                         await btn.click();
                         continueClicked = true;
@@ -364,7 +366,7 @@ async function runAutomation(jobId, password, preview = false, userSkills = [], 
                 // Save
                 const submitBtn = await vtuPage.$('button[type="submit"]');
                 if (submitBtn) {
-                    await vtuPage.evaluate(b => b.click(), submitBtn);
+                    await vtuPage.evaluate((b) => b.click(), submitBtn);
                 }
                 else {
                     await updateJobLog(jobId, "⚠️ Could not locate the Submit button directly!");

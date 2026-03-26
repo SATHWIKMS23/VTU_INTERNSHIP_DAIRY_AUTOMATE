@@ -142,8 +142,8 @@ export async function runAutomation(jobId: string, password: string, preview: bo
       await vtuPage.goto('https://vtu.internyet.in/sign-in', { waitUntil: 'networkidle2' });
       await sleep(3000);
 
-      const isLoggedIn = await vtuPage.evaluate(() =>
-        document.body.innerText.includes('Internship Diary')
+      const isLoggedIn = await vtuPage.evaluate((el: HTMLElement) =>
+        el.innerText.includes('Internship Diary'), (await vtuPage.$('body'))!
       );
 
       if (!isLoggedIn) {
@@ -167,7 +167,7 @@ export async function runAutomation(jobId: string, password: string, preview: bo
         const buttons = await vtuPage.$$('button');
         let clickedLogin = false;
         for (const btn of buttons) {
-          const text = await vtuPage.evaluate(el => el.innerText, btn);
+          const text = await vtuPage.evaluate((el: Element) => (el as HTMLElement).innerText, btn);
           if (text.toLowerCase().includes('login') || text.toLowerCase().includes('sign in')) {
             await btn.click();
             clickedLogin = true;
@@ -199,17 +199,19 @@ export async function runAutomation(jobId: string, password: string, preview: bo
         await updateJobLog(jobId, "⚠️ No existing entries found in table (or API took too long to load).");
       }
 
-      const latestDateStr = await vtuPage.evaluate(() => {
-        const text = document.body.innerText.replace(/\s+/g, '');
+      const existingDates = await vtuPage.evaluate((b: HTMLElement) => {
+        const text = b.innerText.replace(/\s+/g, '');
         const matches = text.match(/\d{4}-\d{2}-\d{2}/g);
-        return matches ? matches[0] : null; 
-      });
+        return matches || []; 
+      }, (await vtuPage.$('body'))!);
 
       let unsubmittedEntries = entries;
 
-      if (latestDateStr) {
+      if (existingDates.length > 0) {
+        const latestDateStr = existingDates[0]; // Assuming the first match is the latest
         await updateJobLog(jobId, `✅ Last submitted date: ${latestDateStr}. Filtering entries strictly AFTER this date.`);
-        unsubmittedEntries = entries.filter(e => e.isoDate > latestDateStr);
+        const filtered = entries.filter(e => !existingDates.some((iso: string) => iso === e.isoDate));
+        unsubmittedEntries = filtered;
       } else {
         await updateJobLog(jobId, `✅ No existing entries found. Proceeding with all.`);
       }
@@ -255,7 +257,7 @@ export async function runAutomation(jobId: string, password: string, preview: bo
         await sleep(100);
 
         const dayNum = parseInt(dayStr, 10).toString();
-        await vtuPage.evaluate((dTxt) => {
+        await vtuPage.evaluate((dTxt: string) => {
           const buttons = Array.from(document.querySelectorAll('button.rdp-day_button'));
           for (const btn of buttons) {
             const td = btn.closest('td');
@@ -270,7 +272,7 @@ export async function runAutomation(jobId: string, password: string, preview: bo
         const buttons = await vtuPage.$$('button');
         let continueClicked = false;
         for (const btn of buttons) {
-          const text = await vtuPage.evaluate(el => el.innerText, btn);
+          const text = await vtuPage.evaluate((el: Element) => (el as HTMLElement).innerText, btn);
           if (text.toLowerCase().includes('continue')) {
             await btn.click();
             continueClicked = true;
@@ -394,7 +396,7 @@ export async function runAutomation(jobId: string, password: string, preview: bo
         // Save
         const submitBtn = await vtuPage.$('button[type="submit"]');
         if (submitBtn) {
-          await vtuPage.evaluate(b => (b as HTMLElement).click(), submitBtn);
+          await vtuPage.evaluate((b: HTMLElement) => b.click(), submitBtn);
         } else {
           await updateJobLog(jobId, "⚠️ Could not locate the Submit button directly!");
         }
@@ -405,14 +407,14 @@ export async function runAutomation(jobId: string, password: string, preview: bo
         // Verification step
         await vtuPage.goto('https://vtu.internyet.in/dashboard/student/diary-entries', { waitUntil: 'networkidle2' });
         try {
-          await vtuPage.waitForFunction((iso) => {
+          await vtuPage.waitForFunction((iso: unknown) => {
             return document.body.innerText.replace(/\s+/g, '').includes(iso as string);
           }, { timeout: 15000 }, data.isoDate);
         } catch(e) {
           await updateJobLog(jobId, `⚠️ Timed out waiting for ${data.isoDate} to appear in the table!`);
         }
 
-        const isSaved = await vtuPage.evaluate((iso) => {
+        const isSaved = await vtuPage.evaluate((iso: unknown) => {
           const text = document.body.innerText.replace(/\s+/g, '');
           return text.includes(iso as string);
         }, data.isoDate);
