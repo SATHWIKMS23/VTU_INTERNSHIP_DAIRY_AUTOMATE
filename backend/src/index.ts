@@ -12,7 +12,10 @@ const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/vtu-automate';
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'https://vtu-internship-dairy-automate.onrender.com'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Routes
