@@ -3,7 +3,9 @@ import axios from 'axios';
 import { PlayCircle, StopCircle, CheckCircle2, XCircle, Loader2, Search, X } from 'lucide-react';
 import './index.css';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = window.location.hostname === 'localhost' 
+  ? 'http://localhost:5000/api' 
+  : 'https://vtu-internship-dairy-automate-backend.onrender.com/api';
 
 const ALL_SKILLS = [
   "Accounting", "Adobe Illustrator", "Adobe Indesign", "Adobe Photoshop", "Android Studio",
