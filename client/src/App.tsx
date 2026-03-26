@@ -259,6 +259,9 @@ function App() {
               required
               disabled={!!job && (job.status === 'pending' || job.status === 'processing')}
             />
+            <p style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              📌 Tip: Use <strong>DD-MM-YYYY</strong> or <strong>DD/MM/YYYY</strong> for dates in your Google Doc.
+            </p>
           </div>
           
           <div className="form-group">

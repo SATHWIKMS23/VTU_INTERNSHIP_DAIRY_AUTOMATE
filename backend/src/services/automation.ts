@@ -77,10 +77,10 @@ export async function runAutomation(jobId: string, password: string, preview: bo
       
       function parseEntries(text: string) {
         const entries: any[] = [];
-        const dates = text.match(/\d{2}-\d{2}-\d{4}/g);
+        const dates = text.match(/\d{2}[-/]\d{2}[-/]\d{4}/g);
         if (!dates) return [];
 
-        const blocks = text.split(/\d{2}-\d{2}-\d{4}/).slice(1);
+        const blocks = text.split(/\d{2}[-/]\d{2}[-/]\d{4}/).slice(1);
 
         for (let i = 0; i < dates.length; i++) {
           const block = blocks[i];
@@ -102,14 +102,14 @@ export async function runAutomation(jobId: string, password: string, preview: bo
           const blockers = blockerMatch ? blockerMatch[1].trim() : "";
 
           const formattedDate = dates[i].replace(
-            /(\d{2})-(\d{2})-(\d{4})/,
+            /(\d{2})[-/](\d{2})[-/](\d{4})/,
             (_, d, m, y) => {
               const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-              return `${d} ${months[parseInt(m) - 1]} ${y}`;
+              return `${d}/${months[parseInt(m) - 1]}/${y}`;
             }
           );
 
-          const isoDate = dates[i].replace(/(\d{2})-(\d{2})-(\d{4})/, "$3-$2-$1");
+          const isoDate = dates[i].replace(/(\d{2})[-/](\d{2})[-/](\d{4})/, "$3-$2-$1");
 
           entries.push({
             date: formattedDate,
@@ -247,7 +247,7 @@ export async function runAutomation(jobId: string, password: string, preview: bo
         await vtuPage.click('button[data-slot="popover-trigger"]');
         await vtuPage.waitForSelector('select[aria-label="Choose the Year"]', { visible: true, timeout: 10000 });
 
-        const [dayStr, monthStr, yearStr] = data.date.split(' ');
+        const [dayStr, monthStr, yearStr] = data.date.split('/');
         const monthsArr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         const monthIndex = monthsArr.indexOf(monthStr);
 
